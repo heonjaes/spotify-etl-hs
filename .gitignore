@@ -1,0 +1,5 @@
+env/.env
+env/*
+
+.cache
+.spotify_cache
