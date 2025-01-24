@@ -1,20 +1,20 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import os
-import dotenv
+from dotenv import load_dotenv
 import time
 import pandas as pd
 from datetime import datetime, timedelta
 
 # Load environment variables
-dotenv.load_dotenv(dotenv_path="../../env/.env")
+load_dotenv(dotenv_path="../../env/.env")
 
 # Set the appropriate scope to read user's listening history
 scope = "user-read-recently-played"
 
-CLIENT_ID = os.environ.get('CLIENT_ID')
-CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
-REDIRECT_URI = os.environ.get('REDIRECT_URI')
+CLIENT_ID = os.getenv('CLIENT_ID')
+CLIENT_SECRET = os.getenv('CLIENT_SECRET')
+REDIRECT_URI = os.getenv('REDIRECT_URI')
 
 # Initialize Spotipy
 sp = spotipy.Spotify(

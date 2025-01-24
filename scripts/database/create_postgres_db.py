@@ -1,9 +1,16 @@
 import os
 import psycopg2
 from psycopg2 import sql
-from psycopg2.errors import OperationalError
+from psycopg2.errors import OperationalError, DuplicateDatabase
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(dotenv_path="../../env/.env")
 
 def get_db_connection(dbname, user, password, host, port=5432):
+    """
+    Establish a connection to the PostgreSQL database.
+    """
     try:
         return psycopg2.connect(
             dbname=dbname,
@@ -13,25 +20,45 @@ def get_db_connection(dbname, user, password, host, port=5432):
             port=port
         )
     except OperationalError as e:
-        print(f"Error connecting to database: {e}")
+        print(f"Error connecting to database '{dbname}': {e}")
         raise
 
 def create_db():
-    conn = get_db_connection('postgres', os.getenv('DB_USER'), os.getenv('DB_PASSWORD'), os.getenv('DB_HOST'))
+    """
+    Create the 'spotify_data' database if it doesn't already exist.
+    """
+    db_user = os.getenv('DB_USER')
+    db_password = os.getenv('DB_PASSWORD')
+    db_host = os.getenv('DB_HOST')
+
+    if not all([db_user, db_password, db_host]):
+        raise ValueError("Environment variables DB_USER, DB_PASSWORD, and DB_HOST must be set.")
+
+    conn = get_db_connection('postgres', db_user, db_password, db_host)
     conn.autocommit = True
     cursor = conn.cursor()
 
     try:
         cursor.execute("CREATE DATABASE spotify_data;")
         print("Database created successfully.")
-    except psycopg2.errors.DuplicateDatabase:
-        print("Database already exists.")
+    except DuplicateDatabase:
+        print("Database 'spotify_data' already exists.")
     finally:
         cursor.close()
         conn.close()
 
 def create_tables():
-    conn = get_db_connection('spotify_data', os.getenv('DB_USER'), os.getenv('DB_PASSWORD'), os.getenv('DB_HOST'))
+    """
+    Create the 'artists' and 'tracks' tables in the 'spotify_data' database.
+    """
+    db_user = os.getenv('DB_USER')
+    db_password = os.getenv('DB_PASSWORD')
+    db_host = os.getenv('DB_HOST')
+
+    if not all([db_user, db_password, db_host]):
+        raise ValueError("Environment variables DB_USER, DB_PASSWORD, and DB_HOST must be set.")
+
+    conn = get_db_connection('spotify_data', db_user, db_password, db_host)
     cursor = conn.cursor()
 
     try:
