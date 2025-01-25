@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv(dotenv_path="../../env/.env")
 
+
 def get_db_connection(dbname, user, password, host, port=5432):
     """
     Establish a connection to the PostgreSQL database.
@@ -22,6 +23,7 @@ def get_db_connection(dbname, user, password, host, port=5432):
     except OperationalError as e:
         print(f"Error connecting to database '{dbname}': {e}")
         raise
+
 
 def create_db():
     """
@@ -43,13 +45,16 @@ def create_db():
         print("Database created successfully.")
     except DuplicateDatabase:
         print("Database 'spotify_data' already exists.")
+    except Exception as e:
+        print(f"Error creating database: {e}")
     finally:
         cursor.close()
         conn.close()
 
+
 def create_tables():
     """
-    Create the 'artists' and 'tracks' tables in the 'spotify_data' database.
+    Create the 'artists' and 'tracks' tables in the 'spotify_data' database with additional fields.
     """
     db_user = os.getenv('DB_USER')
     db_password = os.getenv('DB_PASSWORD')
@@ -62,24 +67,37 @@ def create_tables():
     cursor = conn.cursor()
 
     try:
-        # Create artists table
+        # Create artists table with additional fields
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS artists (
             artist_id VARCHAR PRIMARY KEY,
             artist_name TEXT NOT NULL,
             genres TEXT,
             followers INT,
-            popularity INT
+            popularity INT,
+            image_url TEXT
         );
         """)
 
-        # Create tracks table
+        # Create tracks table with additional fields
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS tracks (
             track_id VARCHAR PRIMARY KEY,
             track_name TEXT NOT NULL,
             artist_id VARCHAR NOT NULL,
             played_at TIMESTAMPTZ NOT NULL,
+            track_uri TEXT,
+            track_popularity INT,
+            track_duration_ms INT,
+            track_preview_url TEXT,
+            track_external_url TEXT,
+            track_album_name TEXT,
+            track_album_id VARCHAR,
+            track_album_uri TEXT,
+            track_album_release_date DATE,
+            track_album_type TEXT,
+            track_album_total_tracks INT,
+            track_album_image_url TEXT,
             FOREIGN KEY (artist_id) REFERENCES artists(artist_id),
             UNIQUE (track_id, played_at)
         );
@@ -93,6 +111,7 @@ def create_tables():
     finally:
         cursor.close()
         conn.close()
+
 
 if __name__ == '__main__':
     create_db()

@@ -29,19 +29,22 @@ def fetch_artist_details(artist_id):
     """Fetches details about an artist using their Spotify ID."""
     try:
         artist = sp.artist(artist_id)
+        print(f'Fetched {artist['name']}')
+
         return {
             "Artist ID": artist_id,
             "Artist Name": artist['name'],
             "Genres": ", ".join(artist['genres']),
             "Followers": artist['followers']['total'],
-            "Popularity": artist['popularity']
+            "Popularity": artist['popularity'],
+            "Image": artist['images'][0]['url']
         }
     except Exception as e:
         print(f"Error fetching details for artist {artist_id}: {e}")
         return None
 
 # Step 1: Load the listening history data
-input_file = '../../data/listening_history.csv'
+input_file = '../../data/raw/listening_history.csv'
 
 # Check if file exists
 if not os.path.exists(input_file):
@@ -59,14 +62,13 @@ for artist_id in unique_artist_ids:
     if artist_details:
         artist_data.append(artist_details)
 
-    print(artist_details['name'])
     time.sleep(1)  # Optional: Pause to avoid rate-limiting
 
 # Step 3: Create a DataFrame for artist data
 artist_df = pd.DataFrame(artist_data)
 
 # Step 4: Save the artist data to a CSV file
-os.makedirs("../../data", exist_ok=True)  # Ensure the directory exists
-artist_df.to_csv('../../data/artists.csv', index=False, encoding='utf-8')
+os.makedirs("../../data/raw", exist_ok=True)  # Ensure the directory exists
+artist_df.to_csv('../../data//raw/artists.csv', index=False, encoding='utf-8')
 
-print(f"Artist details saved to ../../data/artists.csv")
+print(f"Artist details saved to ../../data//raw/artists.csv")

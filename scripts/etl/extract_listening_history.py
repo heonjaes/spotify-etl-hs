@@ -32,7 +32,7 @@ def fetch_tracks_since(after_timestamp):
     return results['items']
 
 # Ensure the 'data' directory exists
-output_dir = "../../data"
+output_dir = "../../data/raw"
 os.makedirs(output_dir, exist_ok=True)
 
 # Initialize empty lists to hold data
@@ -42,7 +42,7 @@ track_data = []
 now = datetime.now()
 after_timestamps = [
     int((now - timedelta(days=i)).timestamp() * 1000)  # Milliseconds since epoch
-    for i in range(30, 0, -1)  # From 30 days ago to 1 day ago
+    for i in range(5, 0, -1)  # From 30 days ago to 1 day ago
 ]
 
 # Fetch tracks for each day and collect data
@@ -54,11 +54,23 @@ for after in after_timestamps:
         track = item['track']
         artist = track['artists'][0]
 
-        # Collect track and artist data (using only default available features)
+        # Collect all possible track features
         track_data.append({
             "Track ID": track['id'],
-            "Track Name": track['name'],
             "Artist ID": artist['id'],
+            "Track Name": track['name'],
+            "Track URI": track['uri'],
+            "Track Popularity": track['popularity'],
+            "Track Duration": track['duration_ms'],
+            "Track Preview URL": track['preview_url'],
+            "Track External URL": track['external_urls']['spotify'],
+            "Track Album Name": track['album']['name'],
+            "Track Album ID": track['album']['id'],
+            "Track Album URI": track['album']['uri'],
+            "Track Album Release Date": track['album']['release_date'],
+            "Track Album Type": track['album']['album_type'],
+            "Track Album Total Tracks": track['album']['total_tracks'],
+            "Track Album Images": track['album']['images'][0]['url'],
             "Played At": item['played_at']
         })
 
