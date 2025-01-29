@@ -1,7 +1,7 @@
 import sys
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-# sys.path.append("/opt/airflow/scripts")
+sys.path.append("/opt/airflow")
 from datetime import datetime, timedelta
 from scripts.etl.fetch_listening_history import fetch_listening_history
 from scripts.auth.connect_spotify_api import connect_to_spotify_api
