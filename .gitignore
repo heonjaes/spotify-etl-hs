@@ -1,5 +1,5 @@
 env/.env
 env/*
-
+/logs
 .cache
 .spotify_cache
