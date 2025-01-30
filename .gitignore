@@ -4,3 +4,5 @@ env/*
 .cache
 .spotify_cache
 .env
+.idea
+/.idea
