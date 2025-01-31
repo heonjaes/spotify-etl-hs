@@ -1,86 +1,94 @@
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
 import os
-from dotenv import load_dotenv
-import time
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
+from scripts.auth.connect_spotify_api import connect_to_spotify_api
 
-# Load environment variables
-load_dotenv(dotenv_path="../../env/.env")
+LAST_EXTRACTION_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/metadata/last_extraction.txt"))
+OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/raw"))
 
-# Set the appropriate scope to read user's listening history
-scope = "user-read-recently-played"
+def get_last_extraction_timestamp():
+    """
+    Reads the last extraction timestamp from a file.
+    If the file doesn't exist, return the start of 2025.
+    """
+    if os.path.exists(LAST_EXTRACTION_FILE):
+        with open(LAST_EXTRACTION_FILE, "r") as f:
+            return int(f.read().strip())  # Convert string timestamp to integer (milliseconds)
+    return int(datetime(2025, 1, 1).timestamp() * 1000)  # Default: Start of 2025
 
-CLIENT_ID = os.getenv('CLIENT_ID')
-CLIENT_SECRET = os.getenv('CLIENT_SECRET')
-REDIRECT_URI = os.getenv('REDIRECT_URI')
+def save_last_extraction_timestamp(timestamp):
+    """Saves the last extraction timestamp to a file."""
+    os.makedirs(os.path.dirname(LAST_EXTRACTION_FILE), exist_ok=True)
+    with open(LAST_EXTRACTION_FILE, "w") as f:
+        f.write(str(timestamp))
 
-# Initialize Spotipy
-sp = spotipy.Spotify(
-    auth_manager=SpotifyOAuth(
-        client_id=CLIENT_ID,
-        client_secret=CLIENT_SECRET,
-        redirect_uri=REDIRECT_URI,
-        scope=scope
-    )
-)
 
-def fetch_tracks_since(after_timestamp):
-    """Fetch up to 50 tracks played since the given timestamp."""
-    results = sp.current_user_recently_played(limit=50, after=after_timestamp)
-    return results['items']
+def extract_listening_history():
+    """
+    Extract all tracks played since the last extraction timestamp and update the record.
+    """
+    last_extraction_timestamp = get_last_extraction_timestamp()
+    print(f"Last extraction timestamp: {last_extraction_timestamp}")
 
-# Ensure the 'data' directory exists
-output_dir = "../../data/raw"
-os.makedirs(output_dir, exist_ok=True)
+    scope = "user-read-recently-played"
+    sp = connect_to_spotify_api(scope=scope)
 
-# Initialize empty lists to hold data
-track_data = []
+    track_data = []
+    limit = 50
+    latest_timestamp = last_extraction_timestamp  # Set it to last_extraction_timestamp initially
 
-# Calculate 'after' timestamps for the past 30 days
-now = datetime.now()
-after_timestamps = [
-    int((now - timedelta(days=i)).timestamp() * 1000)  # Milliseconds since epoch
-    for i in range(5, 0, -1)  # From 30 days ago to 1 day ago
-]
+    while True:
+        # Convert milliseconds to datetime
+        timestamp_dt = datetime.fromtimestamp(latest_timestamp / 1000, tz=timezone.utc)
+        print(f"Fetching data after timestamp: {timestamp_dt.strftime('%Y-%m-%d %H:%M:%S')}")
 
-# Fetch tracks for each day and collect data
-for after in after_timestamps:
-    day_tracks = fetch_tracks_since(after)
-    print(f"Fetched {len(day_tracks)} tracks for after {datetime.fromtimestamp(after // 1000)}.")
+        # Fetch tracks from Spotify API
+        response = sp.current_user_recently_played(limit=limit, after=latest_timestamp)
 
-    for item in day_tracks:
-        track = item['track']
-        artist = track['artists'][0]
+        if not response["items"]:
+            print(f"No new tracks since {timestamp_dt.strftime('%Y-%m-%d %H:%M:%S')}")
+            break  # Stop if no new tracks are returned
 
-        # Collect all possible track features
-        track_data.append({
-            "Track ID": track['id'],
-            "Artist ID": artist['id'],
-            "Track Name": track['name'],
-            "Track URI": track['uri'],
-            "Track Popularity": track['popularity'],
-            "Track Duration": track['duration_ms'],
-            "Track Preview URL": track['preview_url'],
-            "Track External URL": track['external_urls']['spotify'],
-            "Track Album Name": track['album']['name'],
-            "Track Album ID": track['album']['id'],
-            "Track Album URI": track['album']['uri'],
-            "Track Album Release Date": track['album']['release_date'],
-            "Track Album Type": track['album']['album_type'],
-            "Track Album Total Tracks": track['album']['total_tracks'],
-            "Track Album Images": track['album']['images'][0]['url'],
-            "Played At": item['played_at']
-        })
+        # print(response["items"][0]['track'])
+        for item in response["items"]:
+            track = item["track"]
+            artist = track["artists"][0]
 
-    time.sleep(1)  # Optional: Pause to avoid rate-limiting
+            # Add track data to list
+            track_data.append({
+                "Track ID": track["id"],
+                "Artist ID": artist["id"],
+                "Track Name": track["name"],
+                "Artist Name": artist["name"],
+                "Played At": item["played_at"],
+            })
 
-# Convert collected data into a Pandas DataFrame
-track_df = pd.DataFrame(track_data)
+            # Update latest timestamp (most recent song played)
+            played_at_timestamp = int(
+                datetime.strptime(item["played_at"], "%Y-%m-%dT%H:%M:%S.%fZ")
+                .replace(tzinfo=timezone.utc)
+                .timestamp() * 1000  # Convert to milliseconds
+            )
+            latest_timestamp = max(latest_timestamp, played_at_timestamp)
 
-# Save DataFrame to CSV file
-output_file = os.path.join(output_dir, "listening_history.csv")
-track_df.to_csv(output_file, index=False, encoding='utf-8')
+        # No pagination condition: Keep going even if fewer than 50 items are returned
+        print(f"Fetched {len(response['items'])} tracks")
 
-print(f"Data saved to {output_file}")
+    if track_data:
+        # Save track data to CSV
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        df = pd.DataFrame(track_data)
+
+        # Name to and from date of extraction
+        from_date = datetime.fromtimestamp(last_extraction_timestamp / 1000, tz=timezone.utc).strftime('%Y-%m-%d')
+        to_date = datetime.now().strftime('%Y-%m-%d')
+        output_file = os.path.join(OUTPUT_DIR, f"listening_history_{from_date}_to_{to_date}.csv")
+        df.to_csv(output_file, index=False)
+        print(f"Data saved to {output_file}")
+
+        # Save the latest timestamp to track progress
+        save_last_extraction_timestamp(latest_timestamp)
+    else:
+        print("No tracks were fetched.")
+
+

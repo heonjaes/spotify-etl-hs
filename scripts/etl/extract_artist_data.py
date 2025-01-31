@@ -1,74 +1,73 @@
-import pandas as pd
 import os
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
-import dotenv
+import pandas as pd
 import time
+from datetime import datetime
+from scripts.auth.connect_spotify_api import connect_to_spotify_api
 
-# Load environment variables
-dotenv.load_dotenv(dotenv_path="../../env/.env")
+RAW_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/raw"))
 
-# Set the appropriate scope to read user's listening history
-scope = "user-read-recently-played"
 
-CLIENT_ID = os.environ.get('CLIENT_ID')
-CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
-REDIRECT_URI = os.environ.get('REDIRECT_URI')
+def get_latest_listening_history_file():
+    """Finds the most recent listening history file."""
+    files = [f for f in os.listdir(RAW_DATA_DIR) if f.startswith("listening_history_") and f.endswith(".csv")]
+    if not files:
+        raise FileNotFoundError("No listening history file found.")
+    latest_file = max(files, key=lambda f: datetime.strptime(f.split("_")[-1].split(".")[0], "%Y-%m-%d"))
+    return os.path.join(RAW_DATA_DIR, latest_file)
 
-# Initialize Spotipy
-sp = spotipy.Spotify(
-    auth_manager=SpotifyOAuth(
-        client_id=CLIENT_ID,
-        client_secret=CLIENT_SECRET,
-        redirect_uri=REDIRECT_URI,
-        scope=scope
-    )
-)
 
-def fetch_artist_details(artist_id):
-    """Fetches details about an artist using their Spotify ID."""
-    try:
-        artist = sp.artist(artist_id)
-        print(f'Fetched {artist['name']}')
+def extract_unique_artist_ids(file_path):
+    """Extracts unique Artist IDs from the listening history file."""
+    df = pd.read_csv(file_path)
+    return df["Artist ID"].drop_duplicates().tolist()
 
-        return {
-            "Artist ID": artist_id,
-            "Artist Name": artist['name'],
-            "Genres": ", ".join(artist['genres']),
-            "Followers": artist['followers']['total'],
-            "Popularity": artist['popularity'],
-            "Image": artist['images'][0]['url']
-        }
-    except Exception as e:
-        print(f"Error fetching details for artist {artist_id}: {e}")
-        return None
 
-# Step 1: Load the listening history data
-input_file = '../../data/raw/listening_history.csv'
+def fetch_artist_details(artist_ids):
+    """Fetches artist details using the Spotify API in batches of 50."""
+    scope = "user-read-recently-played"
+    sp = connect_to_spotify_api(scope=scope)
 
-# Check if file exists
-if not os.path.exists(input_file):
-    raise FileNotFoundError(f"The file {input_file} was not found. Make sure you fetch the listening history first.")
+    artist_data = []
+    batch_size = 50  # Spotify API allows up to 50 artists per request
 
-# Load the listening history data into a DataFrame
-track_df = pd.read_csv(input_file)
+    for i in range(0, len(artist_ids), batch_size):
+        batch = artist_ids[i:i + batch_size]
+        try:
+            response = sp.artists(batch)
+            for artist in response["artists"]:
+                artist_data.append({
+                    "Artist ID": artist["id"],
+                    "Artist Name": artist["name"],
+                    "Genres": ", ".join(artist["genres"]),
+                    "Followers": artist["followers"]["total"],
+                    "Popularity": artist["popularity"],
+                    "Image": artist["images"][0]["url"] if artist["images"] else None
+                })
+        except Exception as e:
+            print(f"Error fetching batch starting at index {i}: {e}")
 
-# Step 2: Extract artist details
-artist_data = []
-unique_artist_ids = track_df['Artist ID'].unique()  # Avoid duplicates
+        time.sleep(1)  # Avoid rate-limiting
 
-for artist_id in unique_artist_ids:
-    artist_details = fetch_artist_details(artist_id)
-    if artist_details:
-        artist_data.append(artist_details)
+    return artist_data
 
-    time.sleep(1)  # Optional: Pause to avoid rate-limiting
 
-# Step 3: Create a DataFrame for artist data
-artist_df = pd.DataFrame(artist_data)
+def save_artist_details(artist_data, history_file):
+    """Saves artist details to a processed CSV file."""
+    os.makedirs(RAW_DATA_DIR, exist_ok=True)
+    file_name = os.path.basename(history_file).replace("listening_history", "artist_details")
+    output_file = os.path.join(RAW_DATA_DIR, file_name)
 
-# Step 4: Save the artist data to a CSV file
-os.makedirs("../../data/raw", exist_ok=True)  # Ensure the directory exists
-artist_df.to_csv('../../data//raw/artists.csv', index=False, encoding='utf-8')
+    pd.DataFrame(artist_data).to_csv(output_file, index=False)
+    print(f"Artist details saved to {output_file}")
 
-print(f"Artist details saved to ../../data//raw/artists.csv")
+
+def extract_artist_features():
+    """Main function to extract and save artist details."""
+    history_file = get_latest_listening_history_file()
+    artist_ids = extract_unique_artist_ids(history_file)
+    artist_data = fetch_artist_details(artist_ids)
+    save_artist_details(artist_data, history_file)
+
+
+if __name__ == "__main__":
+    extract_artist_features()
