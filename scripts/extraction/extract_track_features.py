@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from scripts.auth.connect_spotify_api import connect_to_spotify_api
 
-RAW_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/raw/listening_history"))
+RAW_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/raw/spotify_api"))
 
 
 def get_latest_listening_history_file():
@@ -41,7 +41,7 @@ def save_track_features_as_json(track_features, history_file):
     """Saves track features to a JSON file."""
     os.makedirs(RAW_DATA_DIR, exist_ok=True)
 
-    file_name = os.path.basename(history_file).replace("listening_history", "track_features").replace(".csv", ".json")
+    file_name = os.path.basename(history_file).replace("listening_history", "track_features")
     output_file = os.path.join(RAW_DATA_DIR, file_name)
 
     with open(output_file, 'w') as f:

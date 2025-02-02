@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from scripts.auth.connect_spotify_api import connect_to_spotify_api
 
 LAST_EXTRACTION_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/metadata/last_extraction.txt"))
-RAW_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/raw/listening_history"))
+RAW_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/raw/spotify_api"))
 
 def get_last_extraction_timestamp():
     """

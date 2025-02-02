@@ -4,7 +4,7 @@ import time
 from scripts.auth.connect_spotify_api import connect_to_spotify_api
 from scripts.extraction.extract_track_features import get_latest_listening_history_file
 
-RAW_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/raw/listening_history"))
+RAW_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/raw/spotify_api"))
 
 
 def extract_raw_listening_history(file_path):
@@ -39,7 +39,7 @@ def fetch_artist_details(artist_ids):
 def save_artist_details_as_json(artist_data, history_file):
     """Saves artist details to a JSON file."""
     os.makedirs(RAW_DATA_DIR, exist_ok=True)
-    file_name = os.path.basename(history_file).replace("listening_history", "artist_details").replace(".csv", ".json")
+    file_name = os.path.basename(history_file).replace("listening_history", "artist_details")
     output_file = os.path.join(RAW_DATA_DIR, file_name)
 
     with open(output_file, 'w') as f:
