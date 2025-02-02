@@ -1,10 +1,10 @@
 import os
-import pandas as pd
+import json
 from datetime import datetime, timezone
 from scripts.auth.connect_spotify_api import connect_to_spotify_api
 
 LAST_EXTRACTION_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/metadata/last_extraction.txt"))
-OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/raw"))
+RAW_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/raw/listening_history"))
 
 def get_last_extraction_timestamp():
     """
@@ -22,10 +22,9 @@ def save_last_extraction_timestamp(timestamp):
     with open(LAST_EXTRACTION_FILE, "w") as f:
         f.write(str(timestamp))
 
-
 def extract_listening_history():
     """
-    Extract all tracks played since the last extraction timestamp and update the record.
+    Extract all tracks played since the last extraction timestamp and save raw data.
     """
     last_extraction_timestamp = get_last_extraction_timestamp()
     print(f"Last extraction timestamp: {last_extraction_timestamp}")
@@ -33,7 +32,7 @@ def extract_listening_history():
     scope = "user-read-recently-played"
     sp = connect_to_spotify_api(scope=scope)
 
-    track_data = []
+    raw_data = []
     limit = 50
     latest_timestamp = last_extraction_timestamp  # Set it to last_extraction_timestamp initially
 
@@ -49,19 +48,9 @@ def extract_listening_history():
             print(f"No new tracks since {timestamp_dt.strftime('%Y-%m-%d %H:%M:%S')}")
             break  # Stop if no new tracks are returned
 
-        # print(response["items"][0]['track'])
         for item in response["items"]:
-            track = item["track"]
-            artist = track["artists"][0]
-
-            # Add track data to list
-            track_data.append({
-                "Track ID": track["id"],
-                "Artist ID": artist["id"],
-                "Track Name": track["name"],
-                "Artist Name": artist["name"],
-                "Played At": item["played_at"],
-            })
+            # Append the entire raw item data
+            raw_data.append(item)
 
             # Update latest timestamp (most recent song played)
             played_at_timestamp = int(
@@ -74,21 +63,22 @@ def extract_listening_history():
         # No pagination condition: Keep going even if fewer than 50 items are returned
         print(f"Fetched {len(response['items'])} tracks")
 
-    if track_data:
-        # Save track data to CSV
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        df = pd.DataFrame(track_data)
+    if raw_data:
+        # Save raw data to JSON
+        os.makedirs(RAW_DATA_DIR, exist_ok=True)
 
         # Name to and from date of extraction
-        from_date = datetime.fromtimestamp(last_extraction_timestamp / 1000, tz=timezone.utc).strftime('%Y-%m-%d')
-        to_date = datetime.now().strftime('%Y-%m-%d')
-        output_file = os.path.join(OUTPUT_DIR, f"listening_history_{from_date}_to_{to_date}.csv")
-        df.to_csv(output_file, index=False)
+        from_date = datetime.fromtimestamp(last_extraction_timestamp / 1000, tz=timezone.utc).strftime('%Y-%m-%dT%H-%M-%S')
+        to_date = datetime.now().strftime('%Y-%m-%dT%H-%M-%S')
+        output_file = os.path.join(RAW_DATA_DIR, f"listening_history_{from_date}_to_{to_date}.json")
+        print(output_file)
+        # Save raw data as JSON
+        with open(output_file, 'w') as f:
+            json.dump(raw_data, f, indent=4)
+
         print(f"Data saved to {output_file}")
 
         # Save the latest timestamp to track progress
         save_last_extraction_timestamp(latest_timestamp)
     else:
         print("No tracks were fetched.")
-
-
