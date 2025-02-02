@@ -1,19 +1,10 @@
 import os
 import json
 import time
-from datetime import datetime
 from scripts.auth.connect_spotify_api import connect_to_spotify_api
+from scripts.extraction.extract_track_features import get_latest_listening_history_file
 
 RAW_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/raw/listening_history"))
-
-
-def get_latest_listening_history_file():
-    """Finds the most recent listening history file."""
-    files = [f for f in os.listdir(RAW_DATA_DIR) if f.startswith("listening_history_") and f.endswith(".json")]
-    if not files:
-        raise FileNotFoundError("No listening history file found.")
-    latest_file = max(files, key=lambda f: datetime.strptime(f.split("_")[-1].split(".")[0], "%Y-%m-%dT%H-%M-%S"))
-    return os.path.join(RAW_DATA_DIR, latest_file)
 
 
 def extract_raw_listening_history(file_path):

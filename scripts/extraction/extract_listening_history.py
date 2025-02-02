@@ -71,7 +71,6 @@ def extract_listening_history():
         from_date = datetime.fromtimestamp(last_extraction_timestamp / 1000, tz=timezone.utc).strftime('%Y-%m-%dT%H-%M-%S')
         to_date = datetime.now().strftime('%Y-%m-%dT%H-%M-%S')
         output_file = os.path.join(RAW_DATA_DIR, f"listening_history_{from_date}_to_{to_date}.json")
-        print(output_file)
         # Save raw data as JSON
         with open(output_file, 'w') as f:
             json.dump(raw_data, f, indent=4)
@@ -79,6 +78,6 @@ def extract_listening_history():
         print(f"Data saved to {output_file}")
 
         # Save the latest timestamp to track progress
-        save_last_extraction_timestamp(latest_timestamp)
+        # save_last_extraction_timestamp(to_date)
     else:
         print("No tracks were fetched.")
