@@ -47,14 +47,18 @@ def transform_listening_history():
     # Extract dimensional features for Track Dimension Table
     track_dimension_df = df_track[
         ["id", "name", "popularity", "duration_ms", "album.release_date", "explicit", "album.name"]]
-    track_dimension_df.rename(columns={"id": "track_id", "name": "track_name", "album.name": "album_name"},
+    track_dimension_df.rename(columns={"id": "track_id", "name": "track_name", "album.name": "album_name", 'album.release_date': 'album_release_date'},
                               inplace=True)
     track_dimension_df.to_parquet(os.path.join(PROCESSED_DATA_DIR, "track_dimension.parquet"), index=False)
 
     # Extract dimensional features for Artist Dimension Table
     artist_dimension_df = df_artist[["id", "name", "popularity", "followers.total", "genres"]]
-    artist_dimension_df.rename(columns={"id": "artist_id", "name": "artist_name", "popularity": "artist_popularity",
-                                        "followers.total": "artist_followers"}, inplace=True)
+    artist_dimension_df.rename(columns={"id": "artist_id", "name": "artist_name", "popularity": "popularity",
+                                        "followers.total": "followers"}, inplace=True)
+    
+    # Convert the genres list to a JSON string
+    artist_dimension_df["genres"] = artist_dimension_df["genres"].apply(lambda x: json.dumps(x) if isinstance(x, list) else None)
+    
     artist_dimension_df.to_parquet(os.path.join(PROCESSED_DATA_DIR, "artist_dimension.parquet"), index=False)
 
     print(f"Data transformed and saved to {PROCESSED_DATA_DIR}/listening_history_fact.parquet")
