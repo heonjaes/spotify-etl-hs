@@ -93,7 +93,7 @@ def create_tables():
                 album_name TEXT,
                 popularity INT,
                 duration_ms INT,
-                album_release_date DATE,
+                album_release_date TEXT,
                 explicit BOOLEAN
             );
         """)
